@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		096D9A8A2F71A88F000F933D /* CoreMIDI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 096D9A892F71A88F000F933D /* CoreMIDI.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		096D9A6C2F7153F2000F933D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		096D9A582F7153F0000F933D /* JamPartner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JamPartner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		096D9A6B2F7153F2000F933D /* JamPartnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JamPartnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		096D9A752F7153F2000F933D /* JamPartnerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JamPartnerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		096D9A892F71A88F000F933D /* CoreMIDI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMIDI.framework; path = System/Library/Frameworks/CoreMIDI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				096D9A8A2F71A88F000F933D /* CoreMIDI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +84,7 @@
 				096D9A5A2F7153F0000F933D /* JamPartner */,
 				096D9A6E2F7153F2000F933D /* JamPartnerTests */,
 				096D9A782F7153F2000F933D /* JamPartnerUITests */,
+				096D9A882F71A88F000F933D /* Frameworks */,
 				096D9A592F7153F0000F933D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +97,14 @@
 				096D9A752F7153F2000F933D /* JamPartnerUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		096D9A882F71A88F000F933D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				096D9A892F71A88F000F933D /* CoreMIDI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -401,6 +416,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "JamPartner needs Bluetooth to connect to your MIDI glove controller.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -429,6 +445,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "JamPartner needs Bluetooth to connect to your MIDI glove controller.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

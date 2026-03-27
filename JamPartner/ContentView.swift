@@ -6,54 +6,51 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    var midi: MidiManager
+
+    private let columns = [
+        GridItem(.flexible()),
+        GridItem(.flexible())
+    ]
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
+        VStack(spacing: 16) {
+            Text("JamPartner")
+                .font(.title.bold())
+
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(Array(MappingEngine.actions.enumerated()), id: \.offset) { index, action in
+                    Button {
+                        MappingEngine.trigger(index, midi: midi)
                     } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+                        Text(action.label)
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, minHeight: 64)
                     }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-            .toolbar {
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
+                    .buttonStyle(.borderedProminent)
                 }
             }
-        } detail: {
-            Text("Select an item")
-        }
-    }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
+            Divider()
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+            Text("MIDI Log")
+                .font(.caption.bold())
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(midi.log.enumerated()), id: \.offset) { _, entry in
+                        Text(entry)
+                            .font(.system(.caption, design: .monospaced))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxHeight: 180)
         }
+        .padding()
+        .frame(width: 360, height: 420)
     }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }
