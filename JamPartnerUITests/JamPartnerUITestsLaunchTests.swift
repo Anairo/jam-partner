@@ -1,10 +1,3 @@
-//
-//  JamPartnerUITestsLaunchTests.swift
-//  JamPartnerUITests
-//
-//  Created by Orian Patterson Rivero on 23/03/2026.
-//
-
 import XCTest
 
 final class JamPartnerUITestsLaunchTests: XCTestCase {
@@ -21,9 +14,6 @@ final class JamPartnerUITestsLaunchTests: XCTestCase {
     func testLaunch() throws {
         let app = XCUIApplication()
         app.launch()
-
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Screen"

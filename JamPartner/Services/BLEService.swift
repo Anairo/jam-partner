@@ -1,10 +1,3 @@
-//
-//  BleManager.swift
-//  JamPartner
-//
-//  Created by Orian Patterson Rivero on 23/03/2026.
-//
-
 import CoreBluetooth
 import Foundation
 
@@ -12,21 +5,25 @@ private let midiServiceUUID = CBUUID(string: "03B80E5A-EDE8-4B33-A751-6CE34EC4C7
 private let midiCharacteristicUUID = CBUUID(string: "7772E5DB-3868-4112-A1A9-F2669D106BF3")
 private let savedPeripheralKey = "lastBLEMIDIPeripheralUUID"
 
-struct DiscoveredDevice: Identifiable {
-    let id: UUID
-    let name: String
-    let peripheral: CBPeripheral
+protocol BLEServiceProtocol: AnyObject {
+    var onMidiMessage: ((UInt8, UInt8, UInt8) -> Void)? { get set }
+    var onConnectionChanged: ((Bool, String?) -> Void)? { get set }
+    var onDeviceDiscovered: ((DiscoveredDevice) -> Void)? { get set }
+    var onScanningChanged: ((Bool) -> Void)? { get set }
+    var onLog: ((String) -> Void)? { get set }
+
+    func startScan()
+    func stopScan()
+    func connect(to device: DiscoveredDevice)
+    func disconnect()
 }
 
-@Observable
-class BleManager: NSObject {
-    var isScanning = false
-    var isConnected = false
-    var connectedDeviceName: String?
-    var discoveredDevices: [DiscoveredDevice] = []
-    var log: [String] = []
-
-    var onMidiReceived: ((UInt8, UInt8, UInt8) -> Void)?
+class BLEService: NSObject, BLEServiceProtocol {
+    var onMidiMessage: ((UInt8, UInt8, UInt8) -> Void)?
+    var onConnectionChanged: ((Bool, String?) -> Void)?
+    var onDeviceDiscovered: ((DiscoveredDevice) -> Void)?
+    var onScanningChanged: ((Bool) -> Void)?
+    var onLog: ((String) -> Void)?
 
     private var central: CBCentralManager!
     private var connectedPeripheral: CBPeripheral?
@@ -39,23 +36,22 @@ class BleManager: NSObject {
 
     func startScan() {
         guard central.state == .poweredOn else {
-            appendLog("Bluetooth not ready")
+            onLog?("Bluetooth not ready")
             return
         }
-        discoveredDevices = []
-        isScanning = true
+        onScanningChanged?(true)
         central.scanForPeripherals(withServices: [midiServiceUUID])
-        appendLog("Scanning for BLE MIDI devices...")
+        onLog?("Scanning for BLE MIDI devices...")
     }
 
     func stopScan() {
         central.stopScan()
-        isScanning = false
+        onScanningChanged?(false)
     }
 
     func connect(to device: DiscoveredDevice) {
         stopScan()
-        appendLog("Connecting to \(device.name)...")
+        onLog?("Connecting to \(device.name)...")
         central.connect(device.peripheral)
     }
 
@@ -68,20 +64,10 @@ class BleManager: NSObject {
     private func attemptAutoReconnect() {
         guard let uuidString = UserDefaults.standard.string(forKey: savedPeripheralKey),
               let uuid = UUID(uuidString: uuidString) else { return }
-
         let known = central.retrievePeripherals(withIdentifiers: [uuid])
         if let peripheral = known.first {
-            appendLog("Auto-reconnecting to \(peripheral.name ?? "device")...")
+            onLog?("Auto-reconnecting to \(peripheral.name ?? "device")...")
             central.connect(peripheral)
-        }
-    }
-
-    private func appendLog(_ message: String) {
-        DispatchQueue.main.async {
-            self.log.insert(message, at: 0)
-            if self.log.count > 30 {
-                self.log.removeLast()
-            }
         }
     }
 
@@ -90,25 +76,20 @@ class BleManager: NSObject {
         let bytes = [UInt8](data)
 
         var i = 0
-        // skip header byte (timestamp high)
         guard bytes[i] & 0x80 != 0 else { return }
         i += 1
 
         var runningStatus: UInt8 = 0
 
         while i < bytes.count {
-            // timestamp byte
             if bytes[i] & 0x80 != 0 {
                 i += 1
                 if i >= bytes.count { break }
             }
-
-            // status byte or running status
             if bytes[i] & 0x80 != 0 {
                 runningStatus = bytes[i]
                 i += 1
             }
-
             guard runningStatus & 0x80 != 0 else { break }
 
             let messageType = runningStatus & 0xF0
@@ -118,12 +99,12 @@ class BleManager: NSObject {
                 let d1 = bytes[i]
                 let d2 = bytes[i + 1]
                 i += 2
-                onMidiReceived?(runningStatus, d1, d2)
+                onMidiMessage?(runningStatus, d1, d2)
             case 0xC0, 0xD0:
                 guard i < bytes.count else { return }
                 let d1 = bytes[i]
                 i += 1
-                onMidiReceived?(runningStatus, d1, 0)
+                onMidiMessage?(runningStatus, d1, 0)
             default:
                 i += 1
             }
@@ -131,54 +112,62 @@ class BleManager: NSObject {
     }
 }
 
-extension BleManager: CBCentralManagerDelegate {
+// MARK: - CBCentralManagerDelegate
+
+extension BLEService: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
-            appendLog("Bluetooth powered on")
+            onLog?("Bluetooth powered on")
             attemptAutoReconnect()
         case .poweredOff:
-            appendLog("Bluetooth powered off")
+            onLog?("Bluetooth powered off")
         case .unauthorized:
-            appendLog("Bluetooth unauthorized")
+            onLog?("Bluetooth unauthorized")
         default:
             break
         }
     }
 
-    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
-                         advertisementData: [String: Any], rssi: NSNumber) {
+    func centralManager(_ central: CBCentralManager,
+                         didDiscover peripheral: CBPeripheral,
+                         advertisementData: [String: Any],
+                         rssi: NSNumber) {
         let name = peripheral.name ?? "Unknown"
-        if !discoveredDevices.contains(where: { $0.id == peripheral.identifier }) {
-            discoveredDevices.append(DiscoveredDevice(id: peripheral.identifier, name: name, peripheral: peripheral))
-            appendLog("Found: \(name)")
-        }
+        let device = DiscoveredDevice(id: peripheral.identifier, name: name, peripheral: peripheral)
+        onDeviceDiscovered?(device)
+        onLog?("Found: \(name)")
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         connectedPeripheral = peripheral
-        connectedDeviceName = peripheral.name ?? "Unknown"
-        isConnected = true
+        let name = peripheral.name ?? "Unknown"
         UserDefaults.standard.set(peripheral.identifier.uuidString, forKey: savedPeripheralKey)
-        appendLog("Connected to \(connectedDeviceName!)")
+        onConnectionChanged?(true, name)
+        onLog?("Connected to \(name)")
         peripheral.delegate = self
         peripheral.discoverServices([midiServiceUUID])
     }
 
-    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        isConnected = false
-        connectedDeviceName = nil
-        midiCharacteristic = nil
+    func centralManager(_ central: CBCentralManager,
+                         didDisconnectPeripheral peripheral: CBPeripheral,
+                         error: Error?) {
         connectedPeripheral = nil
-        appendLog("Disconnected")
+        midiCharacteristic = nil
+        onConnectionChanged?(false, nil)
+        onLog?("Disconnected")
     }
 
-    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        appendLog("Failed to connect: \(error?.localizedDescription ?? "unknown")")
+    func centralManager(_ central: CBCentralManager,
+                         didFailToConnect peripheral: CBPeripheral,
+                         error: Error?) {
+        onLog?("Failed to connect: \(error?.localizedDescription ?? "unknown")")
     }
 }
 
-extension BleManager: CBPeripheralDelegate {
+// MARK: - CBPeripheralDelegate
+
+extension BLEService: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let services = peripheral.services else { return }
         for service in services where service.uuid == midiServiceUUID {
@@ -186,16 +175,20 @@ extension BleManager: CBPeripheralDelegate {
         }
     }
 
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+    func peripheral(_ peripheral: CBPeripheral,
+                     didDiscoverCharacteristicsFor service: CBService,
+                     error: Error?) {
         guard let chars = service.characteristics else { return }
         for char in chars where char.uuid == midiCharacteristicUUID {
             midiCharacteristic = char
             peripheral.setNotifyValue(true, for: char)
-            appendLog("Subscribed to BLE MIDI characteristic")
+            onLog?("Subscribed to BLE MIDI characteristic")
         }
     }
 
-    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+    func peripheral(_ peripheral: CBPeripheral,
+                     didUpdateValueFor characteristic: CBCharacteristic,
+                     error: Error?) {
         guard characteristic.uuid == midiCharacteristicUUID,
               let data = characteristic.value else { return }
         parseBLEMIDI(data)
