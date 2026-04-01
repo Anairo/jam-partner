@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ModeListView: View {
-    var modeManager: ModeManager
+    @Environment(ModeManager.self) private var modeManager
     @State private var editingMode: ButtonMode?
 
     var body: some View {
@@ -43,7 +43,7 @@ struct ModeListView: View {
         }
 
         .sheet(item: $editingMode) { mode in
-            SingleModeEditorView(modeManager: modeManager, mode: mode)
+            SingleModeEditorView(mode: mode)
         }
     }
 }

@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
-    var connectionVM: ConnectionViewModel
-    var performVM: PerformViewModel
+    @Environment(ConnectionViewModel.self) private var connectionVM
+    @Environment(PerformViewModel.self) private var performVM
     @State private var showConnection = false
 
     var body: some View {
@@ -10,12 +10,12 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(spacing: 0) {
-                        ConnectionStatusBar(vm: connectionVM)
+                        ConnectionStatusBar()
 
-                        ModeHeader(vm: performVM)
+                        ModeHeader()
                             .padding(.vertical, 12)
 
-                        ButtonGridView(vm: performVM)
+                        ButtonGridView()
                             .padding(.horizontal)
 
                         Spacer().frame(height: 32)
@@ -25,7 +25,7 @@ struct ContentView: View {
 
                         Spacer().frame(height: 24)
 
-                        ModePickerSection(vm: performVM)
+                        ModePickerSection()
                             .padding(.horizontal)
 
                         Spacer().frame(height: 24)
@@ -35,7 +35,7 @@ struct ContentView: View {
 
                         Spacer().frame(height: 24)
 
-                        DebounceSection(vm: performVM)
+                        DebounceSection()
                             .padding(.horizontal)
 
                         Spacer().frame(height: 16)
@@ -60,7 +60,7 @@ struct ContentView: View {
                 }
             }
             .sheet(isPresented: $showConnection) {
-                ConnectionSheet(vm: connectionVM)
+                ConnectionSheet()
             }
         }
     }
@@ -73,9 +73,10 @@ struct ContentView: View {
 // MARK: - Inline sections
 
 private struct DebounceSection: View {
-    @Bindable var vm: PerformViewModel
+    @Environment(PerformViewModel.self) private var performVM
 
     var body: some View {
+        @Bindable var vm = performVM
         VStack(alignment: .leading, spacing: 6) {
             Text("DEBOUNCE")
                 .font(.footnote.bold())
@@ -92,7 +93,8 @@ private struct DebounceSection: View {
 }
 
 private struct ModePickerSection: View {
-    var vm: PerformViewModel
+    @Environment(PerformViewModel.self) private var performVM
+    @Environment(ModeManager.self) private var modeManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -102,7 +104,7 @@ private struct ModePickerSection: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 NavigationLink {
-                    ModeEditorDestination(modeManager: vm.modeManager)
+                    ModeEditorDestination()
                 } label: {
                     Text("Edit")
                         .font(.caption)
@@ -110,16 +112,16 @@ private struct ModePickerSection: View {
             }
 
             HStack(spacing: 8) {
-                ForEach(Array(vm.modeManager.modes.enumerated()), id: \.element.id) { index, mode in
+                ForEach(Array(modeManager.modes.enumerated()), id: \.element.id) { index, mode in
                     Button {
-                        vm.modeManager.selectMode(at: index)
+                        modeManager.selectMode(at: index)
                     } label: {
                         Text(mode.name)
-                            .font(.subheadline.weight(index == vm.modeManager.currentModeIndex ? .bold : .regular))
+                            .font(.subheadline.weight(index == modeManager.currentModeIndex ? .bold : .regular))
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
                             .background(
-                                index == vm.modeManager.currentModeIndex
+                                index == modeManager.currentModeIndex
                                     ? Color.accentColor.opacity(0.15)
                                     : Color(.secondarySystemBackground)
                             )
@@ -134,11 +136,9 @@ private struct ModePickerSection: View {
 }
 
 private struct ModeEditorDestination: View {
-    var modeManager: ModeManager
-
     var body: some View {
         List {
-            ModeListView(modeManager: modeManager)
+            ModeListView()
         }
         .navigationTitle("Edit Modes")
         .navigationBarTitleDisplayMode(.inline)
@@ -146,13 +146,12 @@ private struct ModeEditorDestination: View {
 }
 
 private struct ConnectionSheet: View {
-    var vm: ConnectionViewModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List {
-                ConnectionView(vm: vm)
+                ConnectionView()
             }
             .navigationTitle("Bluetooth")
             .navigationBarTitleDisplayMode(.inline)

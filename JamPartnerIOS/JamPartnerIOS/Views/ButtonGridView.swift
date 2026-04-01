@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct ButtonGridView: View {
-    var vm: PerformViewModel
+    @Environment(PerformViewModel.self) private var performVM
+    @Environment(ModeManager.self) private var modeManager
     @State private var tapCounts = [0, 0, 0, 0]
 
     private let columns = [
@@ -16,9 +17,9 @@ struct ButtonGridView: View {
             ForEach(0..<4, id: \.self) { index in
                 Button {
                     tapCounts[index] += 1
-                    vm.onButtonTap(index)
+                    performVM.onButtonTap(index)
                 } label: {
-                    Text(vm.modeManager.currentMode.label(for: index))
+                    Text(modeManager.currentMode.label(for: index))
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity, minHeight: 70)
                         .background(buttonColors[index].gradient)
