@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ConnectionView: View {
-    var vm: ConnectionViewModel
+    @Environment(ConnectionViewModel.self) private var vm
 
     var body: some View {
         GroupBox("Glove Connection") {

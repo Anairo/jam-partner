@@ -1,9 +1,10 @@
 import SwiftUI
 
 struct DebounceView: View {
-    @Bindable var vm: PerformViewModel
+    @Environment(PerformViewModel.self) private var performVM
 
     var body: some View {
+        @Bindable var vm = performVM
         GroupBox("Debounce") {
             HStack {
                 Slider(value: $vm.debounceMs, in: 50...800, step: 10)

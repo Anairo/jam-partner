@@ -4,6 +4,7 @@ import SwiftUI
 struct JamPartnerApp: App {
     @State private var connectionVM: ConnectionViewModel
     @State private var performVM: PerformViewModel
+    @State private var modeManager: ModeManager
 
     init() {
         let bleService = BLEService()
@@ -20,6 +21,7 @@ struct JamPartnerApp: App {
 
         _connectionVM = State(initialValue: connVM)
         _performVM = State(initialValue: perfVM)
+        _modeManager = State(initialValue: modeManager)
 
         bleService.onMidiMessage = { status, data1, data2 in
             perfVM.handleIncomingMidi(status: status, data1: data1, data2: data2)
@@ -28,7 +30,10 @@ struct JamPartnerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(connectionVM: connectionVM, performVM: performVM)
+            ContentView()
+                .environment(connectionVM)
+                .environment(performVM)
+                .environment(modeManager)
         }
     }
 }

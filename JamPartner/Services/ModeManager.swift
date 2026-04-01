@@ -30,6 +30,12 @@ class ModeManager {
         }
     }
 
+    func selectMode(at index: Int) {
+        guard index >= 0 && index < modes.count else { return }
+        currentModeIndex = index
+        save()
+    }
+
     func cycleMode() {
         currentModeIndex = (currentModeIndex + 1) % modes.count
         save()

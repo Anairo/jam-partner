@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SingleModeEditorView: View {
-    var modeManager: ModeManager
+    @Environment(ModeManager.self) private var modeManager
     @State var mode: ButtonMode
     @Environment(\.dismiss) private var dismiss
 

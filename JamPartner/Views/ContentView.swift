@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct ContentView: View {
-    var connectionVM: ConnectionViewModel
-    var performVM: PerformViewModel
+    @Environment(ConnectionViewModel.self) private var connectionVM
+    @Environment(PerformViewModel.self) private var performVM
+    @Environment(ModeManager.self) private var modeManager
     @State private var showModeEditor = false
 
     var body: some View {
@@ -10,10 +11,10 @@ struct ContentView: View {
             Text("JamPartner")
                 .font(.title.bold())
 
-            ConnectionView(vm: connectionVM)
+            ConnectionView()
 
             HStack {
-                Text("Mode: \(performVM.modeManager.currentMode.name)")
+                Text("Mode: \(modeManager.currentMode.name)")
                     .font(.subheadline.bold())
                 Spacer()
                 Button("Edit Modes") { showModeEditor = true }
@@ -22,8 +23,8 @@ struct ContentView: View {
                     .controlSize(.small)
             }
 
-            ButtonGridView(vm: performVM)
-            DebounceView(vm: performVM)
+            ButtonGridView()
+            DebounceView()
 
             Divider()
 
@@ -32,7 +33,7 @@ struct ContentView: View {
         .padding()
         .frame(width: 400, height: 620)
         .sheet(isPresented: $showModeEditor) {
-            ModeEditorView(modeManager: performVM.modeManager)
+            ModeEditorView()
         }
     }
 

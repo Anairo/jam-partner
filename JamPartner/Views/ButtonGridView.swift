@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct ButtonGridView: View {
-    var vm: PerformViewModel
+    @Environment(PerformViewModel.self) private var performVM
+    @Environment(ModeManager.self) private var modeManager
 
     private let columns = [
         GridItem(.flexible()),
@@ -12,9 +13,9 @@ struct ButtonGridView: View {
         LazyVGrid(columns: columns, spacing: 10) {
             ForEach(0..<4, id: \.self) { index in
                 Button {
-                    vm.onButtonTap(index)
+                    performVM.onButtonTap(index)
                 } label: {
-                    Text(vm.modeManager.currentMode.label(for: index))
+                    Text(modeManager.currentMode.label(for: index))
                         .font(.headline)
                         .frame(maxWidth: .infinity, minHeight: 50)
                 }

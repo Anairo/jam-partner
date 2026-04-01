@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ModeEditorView: View {
-    var modeManager: ModeManager
+    @Environment(ModeManager.self) private var modeManager
     @Environment(\.dismiss) private var dismiss
     @State private var editingMode: ButtonMode?
 
@@ -55,7 +55,7 @@ struct ModeEditorView: View {
         .padding()
         .frame(width: 400, height: 350)
         .sheet(item: $editingMode) { mode in
-            SingleModeEditorView(modeManager: modeManager, mode: mode)
+            SingleModeEditorView(mode: mode)
         }
     }
 }
