@@ -19,6 +19,26 @@ protocol BLEServiceProtocol: AnyObject {
 }
 
 enum BLEMIDIParser {
+    private static func isChannelStatus(_ byte: UInt8) -> Bool {
+        switch byte & 0xF0 {
+        case 0x80, 0x90, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func dataLength(for status: UInt8) -> Int? {
+        switch status & 0xF0 {
+        case 0xC0, 0xD0:
+            return 1
+        case 0x80, 0x90, 0xA0, 0xB0, 0xE0:
+            return 2
+        default:
+            return nil
+        }
+    }
+
     static func parse(_ data: Data) -> [(status: UInt8, data1: UInt8, data2: UInt8)] {
         guard data.count >= 3 else { return [] }
 
@@ -33,32 +53,35 @@ enum BLEMIDIParser {
 
         while index < bytes.count {
             if bytes[index] & 0x80 != 0 {
-                index += 1
-                if index >= bytes.count { break }
+                if index + 1 < bytes.count, isChannelStatus(bytes[index + 1]) {
+                    index += 1
+                    runningStatus = bytes[index]
+                    index += 1
+                } else if isChannelStatus(bytes[index]) {
+                    runningStatus = bytes[index]
+                    index += 1
+                } else {
+                    index += 1
+                    continue
+                }
             }
 
-            if bytes[index] & 0x80 != 0 {
-                runningStatus = bytes[index]
-                index += 1
-            }
+            guard let length = dataLength(for: runningStatus) else { break }
 
-            guard runningStatus & 0x80 != 0 else { break }
-
-            let messageType = runningStatus & 0xF0
-            switch messageType {
-            case 0x80, 0x90, 0xA0, 0xB0, 0xE0:
+            switch length {
+            case 2:
                 guard index + 1 < bytes.count else { return messages }
                 let data1 = bytes[index]
                 let data2 = bytes[index + 1]
                 index += 2
                 messages.append((runningStatus, data1, data2))
-            case 0xC0, 0xD0:
+            case 1:
                 guard index < bytes.count else { return messages }
                 let data1 = bytes[index]
                 index += 1
                 messages.append((runningStatus, data1, 0))
             default:
-                index += 1
+                break
             }
         }
 

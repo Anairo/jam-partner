@@ -18,19 +18,11 @@
 			remoteGlobalIDString = 096D9A572F7153F0000F933D;
 			remoteInfo = JamPartner;
 		};
-		096D9A762F7153F2000F933D /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 096D9A502F7153F0000F933D /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 096D9A572F7153F0000F933D;
-			remoteInfo = JamPartner;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		096D9A582F7153F0000F933D /* JamPartner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JamPartner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		096D9A6B2F7153F2000F933D /* JamPartnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JamPartnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		096D9A752F7153F2000F933D /* JamPartnerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JamPartnerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		096D9A892F71A88F000F933D /* CoreMIDI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMIDI.framework; path = System/Library/Frameworks/CoreMIDI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -63,13 +55,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		096D9A722F7153F2000F933D /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -88,7 +73,6 @@
 			children = (
 				096D9A582F7153F0000F933D /* JamPartner.app */,
 				096D9A6B2F7153F2000F933D /* JamPartnerTests.xctest */,
-				096D9A752F7153F2000F933D /* JamPartnerUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -149,26 +133,6 @@
 			productReference = 096D9A6B2F7153F2000F933D /* JamPartnerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		096D9A742F7153F2000F933D /* JamPartnerUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 096D9A852F7153F2000F933D /* Build configuration list for PBXNativeTarget "JamPartnerUITests" */;
-			buildPhases = (
-				096D9A712F7153F2000F933D /* Sources */,
-				096D9A722F7153F2000F933D /* Frameworks */,
-				096D9A732F7153F2000F933D /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				096D9A772F7153F2000F933D /* PBXTargetDependency */,
-			);
-			name = JamPartnerUITests;
-			packageProductDependencies = (
-			);
-			productName = JamPartnerUITests;
-			productReference = 096D9A752F7153F2000F933D /* JamPartnerUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -183,10 +147,6 @@
 						CreatedOnToolsVersion = 16.2;
 					};
 					096D9A6A2F7153F2000F933D = {
-						CreatedOnToolsVersion = 16.2;
-						TestTargetID = 096D9A572F7153F0000F933D;
-					};
-					096D9A742F7153F2000F933D = {
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = 096D9A572F7153F0000F933D;
 					};
@@ -208,7 +168,6 @@
 			targets = (
 				096D9A572F7153F0000F933D /* JamPartner */,
 				096D9A6A2F7153F2000F933D /* JamPartnerTests */,
-				096D9A742F7153F2000F933D /* JamPartnerUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -222,13 +181,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		096D9A692F7153F2000F933D /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		096D9A732F7153F2000F933D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -252,13 +204,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		096D9A712F7153F2000F933D /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -266,11 +211,6 @@
 			isa = PBXTargetDependency;
 			target = 096D9A572F7153F0000F933D /* JamPartner */;
 			targetProxy = 096D9A6C2F7153F2000F933D /* PBXContainerItemProxy */;
-		};
-		096D9A772F7153F2000F933D /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 096D9A572F7153F0000F933D /* JamPartner */;
-			targetProxy = 096D9A762F7153F2000F933D /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -501,40 +441,6 @@
 			};
 			name = Release;
 		};
-		096D9A862F7153F2000F933D /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = LGULT4TAHU;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.interedit.JamPartnerUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = JamPartner;
-			};
-			name = Debug;
-		};
-		096D9A872F7153F2000F933D /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = LGULT4TAHU;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.interedit.JamPartnerUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 5.0;
-				TEST_TARGET_NAME = JamPartner;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -561,15 +467,6 @@
 			buildConfigurations = (
 				096D9A832F7153F2000F933D /* Debug */,
 				096D9A842F7153F2000F933D /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		096D9A852F7153F2000F933D /* Build configuration list for PBXNativeTarget "JamPartnerUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				096D9A862F7153F2000F933D /* Debug */,
-				096D9A872F7153F2000F933D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
