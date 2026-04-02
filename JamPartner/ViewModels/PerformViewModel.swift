@@ -34,6 +34,9 @@ final class PerformViewModel {
             self.appendLog("Mode -> \(self.modeManager.currentMode.name)")
         }
 
+        mappingEngine.config = modeManager.mappingConfig
+        debounceMs = modeManager.mappingConfig.debounceMs
+
         midiService.start()
     }
 
@@ -51,6 +54,11 @@ final class PerformViewModel {
 
     func cycleMode() {
         modeManager.cycleMode()
+    }
+
+    func applyMappingConfig(_ config: MappingConfig) {
+        mappingEngine.config = config
+        debounceMs = config.debounceMs
     }
 
     private func triggerAction(for index: Int) {

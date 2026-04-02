@@ -1,17 +1,17 @@
 import Foundation
 
 final class MappingEngine {
-    static let noteToButton: [UInt8: Int] = [
-        15: 0, 25: 1, 35: 2, 45: 3,
-    ]
+    static let noteToButton: [UInt8: Int] = MappingConfig.default.noteToButton
 
-    var debounceMs: Double {
-        get { queue.sync { _debounceMs } }
-        set { queue.sync { _debounceMs = newValue } }
+    var config: MappingConfig {
+        get { queue.sync { _config } }
+        set { queue.sync { _config = newValue } }
     }
 
-    let comboWindowMs: Double = 150
-    let comboButtons: Set<Int> = [0, 3]
+    var debounceMs: Double {
+        get { config.debounceMs }
+        set { queue.sync { _config.debounceMs = newValue } }
+    }
 
     var onLog: ((String) -> Void)?
     var onButtonTriggered: (@MainActor (Int) -> Void)?
@@ -19,14 +19,15 @@ final class MappingEngine {
 
     private let midiService: any MIDIServiceProtocol
 
-    private var _debounceMs: Double = 250
+    private var _config: MappingConfig
     private var lastTriggerTime: [String: TimeInterval] = [:]
     private var pendingButtons: [Int: TimeInterval] = [:]
     private var pendingTimers: [Int: DispatchWorkItem] = [:]
     private let queue = DispatchQueue(label: "com.jampartner.mapping-engine")
 
-    init(midiService: any MIDIServiceProtocol) {
+    init(midiService: any MIDIServiceProtocol, config: MappingConfig = .default) {
         self.midiService = midiService
+        self._config = config
     }
 
     func trigger(action: Action) {
@@ -50,7 +51,7 @@ final class MappingEngine {
     private func triggerOnQueue(action: Action) {
         let now = ProcessInfo.processInfo.systemUptime
         if let last = lastTriggerTime[action.id],
-           (now - last) * 1000 < _debounceMs {
+           (now - last) * 1000 < _config.debounceMs {
             onLog?("debounce: \(action.label) skipped")
             return
         }
@@ -73,15 +74,17 @@ final class MappingEngine {
 
     private func handleButtonPressOnQueue(button: Int) {
         let now = ProcessInfo.processInfo.systemUptime
+        let combo = _config.comboButtons
+        let windowMs = _config.comboWindowMs
 
-        if comboButtons.contains(button) {
-            guard let partner = comboButtons.first(where: { $0 != button }) else {
+        if combo.contains(button) {
+            guard let partner = combo.first(where: { $0 != button }) else {
                 triggerButtonOnMainActor(button)
                 return
             }
 
             if let partnerTime = pendingButtons[partner],
-               (now - partnerTime) * 1000 < comboWindowMs {
+               (now - partnerTime) * 1000 < windowMs {
                 pendingTimers[partner]?.cancel()
                 pendingTimers.removeValue(forKey: partner)
                 pendingButtons.removeValue(forKey: partner)
@@ -101,7 +104,7 @@ final class MappingEngine {
 
             pendingTimers[button]?.cancel()
             pendingTimers[button] = work
-            queue.asyncAfter(deadline: .now() + comboWindowMs / 1000, execute: work)
+            queue.asyncAfter(deadline: .now() + windowMs / 1000, execute: work)
             return
         }
 
@@ -115,7 +118,7 @@ final class MappingEngine {
         switch messageType {
         case 0x90 where data2 > 0:
             onLog?("IN: Note On  ch=\(channel) note=\(data1) vel=\(data2)")
-            if let button = Self.noteToButton[data1] {
+            if let button = _config.noteToButton[data1] {
                 handleButtonPressOnQueue(button: button)
             }
         case 0x80, 0x90:

@@ -2,12 +2,16 @@ import Foundation
 
 private let modesKey = "savedModes"
 private let currentModeKey = "currentModeIndex"
+private let mappingKey = "savedMappingConfig"
 
 @MainActor
 @Observable
 final class ModeManager {
     var modes: [ButtonMode] = []
     var currentModeIndex: Int = 0
+    var mappingConfig: MappingConfig = .default {
+        didSet { save() }
+    }
 
     private let defaults: UserDefaults
 
@@ -28,6 +32,12 @@ final class ModeManager {
             )
         } else {
             modes = Self.defaultModes
+        }
+
+        if let data = defaults.data(forKey: mappingKey),
+           let saved = try? JSONDecoder().decode(MappingConfig.self, from: data),
+           saved.isValid {
+            mappingConfig = saved
         }
     }
 
@@ -72,6 +82,9 @@ final class ModeManager {
             defaults.set(data, forKey: modesKey)
         }
         defaults.set(currentModeIndex, forKey: currentModeKey)
+        if let data = try? JSONEncoder().encode(mappingConfig) {
+            defaults.set(data, forKey: mappingKey)
+        }
     }
 
     static let defaultModes: [ButtonMode] = [
