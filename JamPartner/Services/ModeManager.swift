@@ -3,8 +3,9 @@ import Foundation
 private let modesKey = "savedModes"
 private let currentModeKey = "currentModeIndex"
 
+@MainActor
 @Observable
-class ModeManager {
+final class ModeManager {
     var modes: [ButtonMode] = []
     var currentModeIndex: Int = 0
 
@@ -31,7 +32,7 @@ class ModeManager {
     }
 
     func selectMode(at index: Int) {
-        guard index >= 0 && index < modes.count else { return }
+        guard modes.indices.contains(index) else { return }
         currentModeIndex = index
         save()
     }
@@ -42,11 +43,12 @@ class ModeManager {
     }
 
     func actionForButton(_ index: Int) -> Action? {
-        guard index < currentMode.actions.count else { return nil }
+        guard currentMode.actions.indices.contains(index) else { return nil }
         return ActionCatalog.find(currentMode.actions[index])
     }
 
     func updateMode(at index: Int, mode: ButtonMode) {
+        guard modes.indices.contains(index) else { return }
         modes[index] = mode
         save()
     }
@@ -57,7 +59,7 @@ class ModeManager {
     }
 
     func removeMode(at index: Int) {
-        guard modes.count > 1 else { return }
+        guard modes.count > 1, modes.indices.contains(index) else { return }
         modes.remove(at: index)
         if currentModeIndex >= modes.count {
             currentModeIndex = modes.count - 1

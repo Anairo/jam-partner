@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 @main
 struct JamPartnerApp: App {
     @State private var connectionVM: ConnectionViewModel
@@ -10,7 +11,7 @@ struct JamPartnerApp: App {
         let bleService = BLEService()
         let midiService = MIDIService()
         let modeManager = ModeManager()
-        let mappingEngine = MappingEngine(modeManager: modeManager, midiService: midiService)
+        let mappingEngine = MappingEngine(midiService: midiService)
 
         let connVM = ConnectionViewModel(bleService: bleService)
         let perfVM = PerformViewModel(
@@ -24,7 +25,9 @@ struct JamPartnerApp: App {
         _modeManager = State(initialValue: modeManager)
 
         bleService.onMidiMessage = { status, data1, data2 in
-            perfVM.handleIncomingMidi(status: status, data1: data1, data2: data2)
+            Task { @MainActor in
+                perfVM.handleIncomingMidi(status: status, data1: data1, data2: data2)
+            }
         }
     }
 

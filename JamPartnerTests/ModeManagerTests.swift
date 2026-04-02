@@ -2,6 +2,7 @@ import Testing
 import Foundation
 @testable import JamPartner
 
+@MainActor
 @Suite("ModeManager")
 struct ModeManagerTests {
 
@@ -83,6 +84,17 @@ struct ModeManagerTests {
         #expect(manager.modes[0].name == "Renamed")
     }
 
+    @Test("updateMode ignores invalid indexes")
+    func updateModeInvalidIndex() {
+        let manager = makeFreshManager()
+        let originalModes = manager.modes
+        let newMode = ButtonMode(id: UUID(), name: "Ignored", actions: ["undo", "undo", "undo", "undo"])
+
+        manager.updateMode(at: 99, mode: newMode)
+
+        #expect(manager.modes == originalModes)
+    }
+
     @Test("actionForButton returns correct action")
     func actionForButton() {
         let manager = makeFreshManager()
@@ -95,5 +107,15 @@ struct ModeManagerTests {
     func actionForButtonOutOfBounds() {
         let manager = makeFreshManager()
         #expect(manager.actionForButton(99) == nil)
+    }
+
+    @Test("removeMode ignores invalid indexes")
+    func removeModeInvalidIndex() {
+        let manager = makeFreshManager()
+        let originalModes = manager.modes
+
+        manager.removeMode(at: 99)
+
+        #expect(manager.modes == originalModes)
     }
 }

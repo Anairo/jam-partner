@@ -18,7 +18,55 @@ protocol BLEServiceProtocol: AnyObject {
     func disconnect()
 }
 
-class BLEService: NSObject, BLEServiceProtocol {
+enum BLEMIDIParser {
+    static func parse(_ data: Data) -> [(status: UInt8, data1: UInt8, data2: UInt8)] {
+        guard data.count >= 3 else { return [] }
+
+        let bytes = [UInt8](data)
+        var messages: [(status: UInt8, data1: UInt8, data2: UInt8)] = []
+        var index = 0
+
+        guard bytes[index] & 0x80 != 0 else { return [] }
+        index += 1
+
+        var runningStatus: UInt8 = 0
+
+        while index < bytes.count {
+            if bytes[index] & 0x80 != 0 {
+                index += 1
+                if index >= bytes.count { break }
+            }
+
+            if bytes[index] & 0x80 != 0 {
+                runningStatus = bytes[index]
+                index += 1
+            }
+
+            guard runningStatus & 0x80 != 0 else { break }
+
+            let messageType = runningStatus & 0xF0
+            switch messageType {
+            case 0x80, 0x90, 0xA0, 0xB0, 0xE0:
+                guard index + 1 < bytes.count else { return messages }
+                let data1 = bytes[index]
+                let data2 = bytes[index + 1]
+                index += 2
+                messages.append((runningStatus, data1, data2))
+            case 0xC0, 0xD0:
+                guard index < bytes.count else { return messages }
+                let data1 = bytes[index]
+                index += 1
+                messages.append((runningStatus, data1, 0))
+            default:
+                index += 1
+            }
+        }
+
+        return messages
+    }
+}
+
+final class BLEService: NSObject, BLEServiceProtocol {
     var onMidiMessage: ((UInt8, UInt8, UInt8) -> Void)?
     var onConnectionChanged: ((Bool, String?) -> Void)?
     var onDeviceDiscovered: ((DiscoveredDevice) -> Void)?
@@ -72,42 +120,8 @@ class BLEService: NSObject, BLEServiceProtocol {
     }
 
     private func parseBLEMIDI(_ data: Data) {
-        guard data.count >= 3 else { return }
-        let bytes = [UInt8](data)
-
-        var i = 0
-        guard bytes[i] & 0x80 != 0 else { return }
-        i += 1
-
-        var runningStatus: UInt8 = 0
-
-        while i < bytes.count {
-            if bytes[i] & 0x80 != 0 {
-                i += 1
-                if i >= bytes.count { break }
-            }
-            if bytes[i] & 0x80 != 0 {
-                runningStatus = bytes[i]
-                i += 1
-            }
-            guard runningStatus & 0x80 != 0 else { break }
-
-            let messageType = runningStatus & 0xF0
-            switch messageType {
-            case 0x80, 0x90, 0xA0, 0xB0, 0xE0:
-                guard i + 1 < bytes.count else { return }
-                let d1 = bytes[i]
-                let d2 = bytes[i + 1]
-                i += 2
-                onMidiMessage?(runningStatus, d1, d2)
-            case 0xC0, 0xD0:
-                guard i < bytes.count else { return }
-                let d1 = bytes[i]
-                i += 1
-                onMidiMessage?(runningStatus, d1, 0)
-            default:
-                i += 1
-            }
+        for message in BLEMIDIParser.parse(data) {
+            onMidiMessage?(message.status, message.data1, message.data2)
         }
     }
 }
@@ -169,6 +183,11 @@ extension BLEService: CBCentralManagerDelegate {
 
 extension BLEService: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        if let error {
+            onLog?("Service discovery failed: \(error.localizedDescription)")
+            return
+        }
+
         guard let services = peripheral.services else { return }
         for service in services where service.uuid == midiServiceUUID {
             peripheral.discoverCharacteristics([midiCharacteristicUUID], for: service)
@@ -178,17 +197,32 @@ extension BLEService: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral,
                      didDiscoverCharacteristicsFor service: CBService,
                      error: Error?) {
+        if let error {
+            onLog?("Characteristic discovery failed: \(error.localizedDescription)")
+            return
+        }
+
         guard let chars = service.characteristics else { return }
+        var foundCharacteristic = false
         for char in chars where char.uuid == midiCharacteristicUUID {
+            foundCharacteristic = true
             midiCharacteristic = char
             peripheral.setNotifyValue(true, for: char)
             onLog?("Subscribed to BLE MIDI characteristic")
+        }
+        if !foundCharacteristic {
+            onLog?("BLE MIDI characteristic not found")
         }
     }
 
     func peripheral(_ peripheral: CBPeripheral,
                      didUpdateValueFor characteristic: CBCharacteristic,
                      error: Error?) {
+        if let error {
+            onLog?("BLE MIDI update failed: \(error.localizedDescription)")
+            return
+        }
+
         guard characteristic.uuid == midiCharacteristicUUID,
               let data = characteristic.value else { return }
         parseBLEMIDI(data)
