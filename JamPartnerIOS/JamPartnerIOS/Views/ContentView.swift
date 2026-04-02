@@ -38,6 +38,16 @@ struct ContentView: View {
                         DebounceSection()
                             .padding(.horizontal)
 
+                        Spacer().frame(height: 24)
+
+                        Divider()
+                            .padding(.horizontal)
+
+                        Spacer().frame(height: 24)
+
+                        SettingsSection()
+                            .padding(.horizontal)
+
                         Spacer().frame(height: 16)
                     }
                 }
@@ -142,6 +152,34 @@ private struct ModeEditorDestination: View {
         }
         .navigationTitle("Edit Modes")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct SettingsSection: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("REGLAGES")
+                .font(.footnote.bold())
+                .foregroundStyle(.secondary)
+
+            NavigationLink {
+                MappingSettingsView()
+            } label: {
+                HStack {
+                    Label("Mapping BLE/MIDI", systemImage: "slider.horizontal.3")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .font(.subheadline)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+        }
     }
 }
 

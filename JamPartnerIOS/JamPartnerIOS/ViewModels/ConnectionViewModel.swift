@@ -1,7 +1,8 @@
 import Foundation
 
+@MainActor
 @Observable
-class ConnectionViewModel {
+final class ConnectionViewModel {
     var isConnected = false
     var isScanning = false
     var connectedDeviceName: String?
@@ -14,14 +15,14 @@ class ConnectionViewModel {
         self.bleService = bleService
 
         bleService.onConnectionChanged = { [weak self] connected, name in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self?.isConnected = connected
                 self?.connectedDeviceName = name
             }
         }
 
         bleService.onDeviceDiscovered = { [weak self] device in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard let self else { return }
                 if !self.discoveredDevices.contains(where: { $0.id == device.id }) {
                     self.discoveredDevices.append(device)
@@ -30,13 +31,15 @@ class ConnectionViewModel {
         }
 
         bleService.onScanningChanged = { [weak self] scanning in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self?.isScanning = scanning
             }
         }
 
         bleService.onLog = { [weak self] msg in
-            self?.appendLog(msg)
+            Task { @MainActor in
+                self?.appendLog(msg)
+            }
         }
     }
 
@@ -58,9 +61,7 @@ class ConnectionViewModel {
     }
 
     private func appendLog(_ message: String) {
-        DispatchQueue.main.async {
-            self.log.insert(message, at: 0)
-            if self.log.count > 30 { self.log.removeLast() }
-        }
+        log.insert(message, at: 0)
+        if log.count > 30 { log.removeLast() }
     }
 }
