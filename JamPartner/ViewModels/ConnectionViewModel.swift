@@ -1,6 +1,7 @@
 import Foundation
 
 @Observable
+@MainActor
 class ConnectionViewModel {
     var isConnected = false
     var isScanning = false

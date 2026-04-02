@@ -36,7 +36,9 @@ struct ModeEditorView: View {
                     }
                 }
                 .onDelete { offsets in
-                    for i in offsets { modeManager.removeMode(at: i) }
+                    for i in offsets.sorted(by: >) {
+                        modeManager.removeMode(at: i)
+                    }
                 }
             }
             .frame(minHeight: 150)

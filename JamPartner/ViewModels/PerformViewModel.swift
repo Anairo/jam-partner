@@ -1,6 +1,7 @@
 import Foundation
 
 @Observable
+@MainActor
 class PerformViewModel {
     private(set) var log: [String] = []
     var debounceMs: Double = 250
@@ -16,6 +17,14 @@ class PerformViewModel {
 
         midiService.onLog = { [weak self] msg in self?.appendLog(msg) }
         mappingEngine.onLog = { [weak self] msg in self?.appendLog(msg) }
+        mappingEngine.onButtonTriggered = { [weak self] index in
+            self?.triggerAction(for: index)
+        }
+        mappingEngine.onCycleModeRequested = { [weak self] in
+            guard let self else { return }
+            self.modeManager.cycleMode()
+            self.appendLog("Mode -> \(self.modeManager.currentMode.name)")
+        }
 
         midiService.start()
     }
@@ -34,6 +43,11 @@ class PerformViewModel {
 
     func cycleMode() {
         modeManager.cycleMode()
+    }
+
+    private func triggerAction(for index: Int) {
+        guard let action = modeManager.actionForButton(index) else { return }
+        mappingEngine.trigger(action: action)
     }
 
     private func appendLog(_ message: String) {

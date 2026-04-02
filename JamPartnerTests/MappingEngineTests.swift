@@ -1,21 +1,17 @@
-import Testing
 import Foundation
+import Testing
 @testable import JamPartner
 
+@MainActor
 @Suite("MappingEngine")
 struct MappingEngineTests {
 
-    private func makeEngine() -> (MappingEngine, MockMIDIService, ModeManager) {
-        let suite = "com.jampartner.test.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
+    private func makeEngine() -> (MappingEngine, MockMIDIService) {
         let midiService = MockMIDIService()
-        let modeManager = ModeManager(defaults: defaults)
-        let engine = MappingEngine(modeManager: modeManager, midiService: midiService)
+        let engine = MappingEngine(midiService: midiService)
         engine.debounceMs = 0
-        return (engine, midiService, modeManager)
+        return (engine, midiService)
     }
-
-    // MARK: - Note mapping
 
     @Test("noteToButton maps 4 notes to 4 buttons")
     func noteMapping() {
@@ -26,89 +22,112 @@ struct MappingEngineTests {
         #expect(MappingEngine.noteToButton[99] == nil)
     }
 
-    // MARK: - Trigger
-
-    @Test("trigger sends CC for the current mode's action")
+    @Test("trigger sends CC for the provided action")
     func triggerSendsCC() async throws {
-        let (engine, midi, _) = makeEngine()
-        engine.trigger(button: 0)
+        let (engine, midi) = makeEngine()
+        let action = try #require(ActionCatalog.find("prev_track"))
+
+        engine.trigger(action: action)
         try await Task.sleep(for: .milliseconds(50))
 
         #expect(midi.sentCCs.count == 1)
-        #expect(midi.sentCCs[0].controller == 20, "Button 0 in Navigate = prev_track = CC 20")
+        #expect(midi.sentCCs[0].controller == 20)
         #expect(midi.sentCCs[0].value == 127)
     }
 
-    @Test("debounce blocks rapid triggers")
+    @Test("debounce blocks rapid triggers for the same action")
     func debounce() async throws {
-        let (engine, midi, _) = makeEngine()
+        let (engine, midi) = makeEngine()
+        let action = try #require(ActionCatalog.find("prev_track"))
         engine.debounceMs = 5000
 
-        engine.trigger(button: 0)
+        engine.trigger(action: action)
         try await Task.sleep(for: .milliseconds(50))
-        engine.trigger(button: 0)
+        engine.trigger(action: action)
         try await Task.sleep(for: .milliseconds(50))
 
-        #expect(midi.sentCCs.count == 1, "Second trigger should be debounced")
+        #expect(midi.sentCCs.count == 1)
     }
 
-    @Test("different buttons are not debounced against each other")
+    @Test("different actions are not debounced against each other")
     func debouncePerAction() async throws {
-        let (engine, midi, _) = makeEngine()
+        let (engine, midi) = makeEngine()
+        let firstAction = try #require(ActionCatalog.find("prev_track"))
+        let secondAction = try #require(ActionCatalog.find("next_track"))
         engine.debounceMs = 5000
 
-        engine.trigger(button: 0)
+        engine.trigger(action: firstAction)
         try await Task.sleep(for: .milliseconds(50))
-        engine.trigger(button: 1)
+        engine.trigger(action: secondAction)
         try await Task.sleep(for: .milliseconds(50))
 
         #expect(midi.sentCCs.count == 2)
     }
 
-    // MARK: - Incoming MIDI
+    @Test("Note On for mapped note requests the matching button")
+    func incomingNoteOnRequestsButton() async throws {
+        let (engine, _) = makeEngine()
+        var triggeredButton: Int?
 
-    @Test("Note On for mapped note triggers button press")
-    func incomingNoteOn() async throws {
-        let (engine, midi, _) = makeEngine()
+        engine.onButtonTriggered = { button in
+            triggeredButton = button
+        }
+
         engine.handleIncoming(status: 0x90, data1: 15, data2: 100)
         try await Task.sleep(for: .milliseconds(300))
 
-        #expect(midi.sentCCs.count == 1)
-        #expect(midi.sentCCs[0].controller == 20)
+        #expect(triggeredButton == 0)
     }
 
-    @Test("Note On for unmapped note does not trigger")
+    @Test("Note On for unmapped note does not request a button")
     func incomingUnmappedNote() async throws {
-        let (engine, midi, _) = makeEngine()
+        let (engine, _) = makeEngine()
+        var triggeredButton: Int?
+
+        engine.onButtonTriggered = { button in
+            triggeredButton = button
+        }
+
         engine.handleIncoming(status: 0x90, data1: 99, data2: 100)
         try await Task.sleep(for: .milliseconds(300))
 
-        #expect(midi.sentCCs.isEmpty)
+        #expect(triggeredButton == nil)
     }
 
-    @Test("Note Off does not trigger button press")
+    @Test("Note Off does not request a button")
     func incomingNoteOff() async throws {
-        let (engine, midi, _) = makeEngine()
+        let (engine, _) = makeEngine()
+        var triggered = false
+
+        engine.onButtonTriggered = { _ in
+            triggered = true
+        }
+
         engine.handleIncoming(status: 0x80, data1: 15, data2: 0)
         try await Task.sleep(for: .milliseconds(300))
 
-        #expect(midi.sentCCs.isEmpty)
+        #expect(!triggered)
     }
 
-    @Test("Note On with velocity 0 treated as Note Off")
-    func incomingVelocityZero() async throws {
-        let (engine, midi, _) = makeEngine()
-        engine.handleIncoming(status: 0x90, data1: 15, data2: 0)
-        try await Task.sleep(for: .milliseconds(300))
+    @Test("combo button press requests a mode cycle")
+    func comboRequestsModeCycle() async throws {
+        let (engine, _) = makeEngine()
+        var cycleCount = 0
 
-        #expect(midi.sentCCs.isEmpty)
+        engine.onCycleModeRequested = {
+            cycleCount += 1
+        }
+
+        engine.handleButtonPress(button: 0)
+        engine.handleButtonPress(button: 3)
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(cycleCount == 1)
     }
-
-    // MARK: - Logging
 
     @Test("handleIncoming logs CC messages")
     func logsCC() async throws {
-        let (engine, _, _) = makeEngine()
+        let (engine, _) = makeEngine()
         var logged: [String] = []
         engine.onLog = { logged.append($0) }
 

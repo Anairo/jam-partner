@@ -4,6 +4,7 @@ import Foundation
 
 // MARK: - ConnectionViewModel
 
+@MainActor
 @Suite("ConnectionViewModel")
 struct ConnectionViewModelTests {
 
@@ -92,6 +93,7 @@ struct ConnectionViewModelTests {
 
 // MARK: - PerformViewModel
 
+@MainActor
 @Suite("PerformViewModel")
 struct PerformViewModelTests {
 
@@ -100,7 +102,7 @@ struct PerformViewModelTests {
         let defaults = UserDefaults(suiteName: suite)!
         let midi = MockMIDIService()
         let modeManager = ModeManager(defaults: defaults)
-        let engine = MappingEngine(modeManager: modeManager, midiService: midi)
+        let engine = MappingEngine(midiService: midi)
         let vm = PerformViewModel(midiService: midi, mappingEngine: engine, modeManager: modeManager)
         return (vm, midi)
     }

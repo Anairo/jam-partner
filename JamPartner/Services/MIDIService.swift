@@ -8,13 +8,19 @@ protocol MIDIServiceProtocol: AnyObject {
     func sendCC(controller: UInt8, value: UInt8, channel: UInt8)
 }
 
-class MIDIService: MIDIServiceProtocol {
+final class MIDIService: MIDIServiceProtocol {
     var onLog: ((String) -> Void)?
 
     private var client = MIDIClientRef()
     private var virtualSource = MIDIEndpointRef()
+    private var isStarted = false
 
     func start() {
+        guard !isStarted else {
+            onLog?("MIDI service already started")
+            return
+        }
+
         let clientStatus = MIDIClientCreateWithBlock(
             "JamPartner Client" as CFString, &client
         ) { _ in }
@@ -28,10 +34,13 @@ class MIDIService: MIDIServiceProtocol {
             client, "JamPartner Out" as CFString, &virtualSource
         )
         guard sourceStatus == noErr else {
+            MIDIClientDispose(client)
+            client = 0
             onLog?("Failed to create virtual MIDI source: \(sourceStatus)")
             return
         }
 
+        isStarted = true
         onLog?("Virtual MIDI source created: JamPartner Out")
     }
 
@@ -68,6 +77,15 @@ class MIDIService: MIDIServiceProtocol {
         let err = MIDIReceivedEventList(virtualSource, &eventList)
         if err != noErr {
             onLog?("MIDIReceivedEventList error: \(err)")
+        }
+    }
+
+    deinit {
+        if virtualSource != 0 {
+            MIDIEndpointDispose(virtualSource)
+        }
+        if client != 0 {
+            MIDIClientDispose(client)
         }
     }
 }

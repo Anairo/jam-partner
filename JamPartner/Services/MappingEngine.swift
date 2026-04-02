@@ -1,6 +1,6 @@
 import Foundation
 
-class MappingEngine {
+final class MappingEngine {
     static let noteToButton: [UInt8: Int] = [
         15: 0, 25: 1, 35: 2, 45: 3,
     ]
@@ -9,12 +9,14 @@ class MappingEngine {
         get { queue.sync { _debounceMs } }
         set { queue.sync { _debounceMs = newValue } }
     }
+
     let comboWindowMs: Double = 150
     let comboButtons: Set<Int> = [0, 3]
 
     var onLog: ((String) -> Void)?
+    var onButtonTriggered: (@MainActor (Int) -> Void)?
+    var onCycleModeRequested: (@MainActor () -> Void)?
 
-    private let modeManager: ModeManager
     private let midiService: any MIDIServiceProtocol
 
     private var _debounceMs: Double = 250
@@ -23,14 +25,13 @@ class MappingEngine {
     private var pendingTimers: [Int: DispatchWorkItem] = [:]
     private let queue = DispatchQueue(label: "com.jampartner.mapping-engine")
 
-    init(modeManager: ModeManager, midiService: any MIDIServiceProtocol) {
-        self.modeManager = modeManager
+    init(midiService: any MIDIServiceProtocol) {
         self.midiService = midiService
     }
 
-    func trigger(button: Int) {
+    func trigger(action: Action) {
         queue.async { [weak self] in
-            self?.triggerOnQueue(button: button)
+            self?.triggerOnQueue(action: action)
         }
     }
 
@@ -46,18 +47,28 @@ class MappingEngine {
         }
     }
 
-    // MARK: - Queue-bound work
-
-    private func triggerOnQueue(button: Int) {
-        guard let action = modeManager.actionForButton(button) else { return }
+    private func triggerOnQueue(action: Action) {
         let now = ProcessInfo.processInfo.systemUptime
         if let last = lastTriggerTime[action.id],
            (now - last) * 1000 < _debounceMs {
             onLog?("debounce: \(action.label) skipped")
             return
         }
+
         lastTriggerTime[action.id] = now
         midiService.sendCC(controller: action.cc, value: 127, channel: 0)
+    }
+
+    private func triggerButtonOnMainActor(_ button: Int) {
+        Task { @MainActor [weak self] in
+            self?.onButtonTriggered?(button)
+        }
+    }
+
+    private func requestModeCycleOnMainActor() {
+        Task { @MainActor [weak self] in
+            self?.onCycleModeRequested?()
+        }
     }
 
     private func handleButtonPressOnQueue(button: Int) {
@@ -65,7 +76,7 @@ class MappingEngine {
 
         if comboButtons.contains(button) {
             guard let partner = comboButtons.first(where: { $0 != button }) else {
-                triggerOnQueue(button: button)
+                triggerButtonOnMainActor(button)
                 return
             }
 
@@ -75,11 +86,7 @@ class MappingEngine {
                 pendingTimers.removeValue(forKey: partner)
                 pendingButtons.removeValue(forKey: partner)
                 pendingButtons.removeValue(forKey: button)
-                DispatchQueue.main.async { [weak self] in
-                    guard let self else { return }
-                    self.modeManager.cycleMode()
-                    self.onLog?("Mode -> \(self.modeManager.currentMode.name)")
-                }
+                requestModeCycleOnMainActor()
                 return
             }
 
@@ -88,19 +95,16 @@ class MappingEngine {
                 self?.queue.async {
                     self?.pendingButtons.removeValue(forKey: button)
                     self?.pendingTimers.removeValue(forKey: button)
-                    self?.triggerOnQueue(button: button)
+                    self?.triggerButtonOnMainActor(button)
                 }
             }
             pendingTimers[button]?.cancel()
             pendingTimers[button] = work
-            DispatchQueue.main.asyncAfter(
-                deadline: .now() + comboWindowMs / 1000,
-                execute: work
-            )
+            queue.asyncAfter(deadline: .now() + comboWindowMs / 1000, execute: work)
             return
         }
 
-        triggerOnQueue(button: button)
+        triggerButtonOnMainActor(button)
     }
 
     private func handleIncomingOnQueue(status: UInt8, data1: UInt8, data2: UInt8) {

@@ -9,7 +9,7 @@ struct JamPartnerApp: App {
         let bleService = BLEService()
         let midiService = MIDIService()
         let modeManager = ModeManager()
-        let mappingEngine = MappingEngine(modeManager: modeManager, midiService: midiService)
+        let mappingEngine = MappingEngine(midiService: midiService)
 
         let connVM = ConnectionViewModel(bleService: bleService)
         let perfVM = PerformViewModel(
@@ -22,7 +22,9 @@ struct JamPartnerApp: App {
         _performVM = State(initialValue: perfVM)
 
         bleService.onMidiMessage = { status, data1, data2 in
-            perfVM.handleIncomingMidi(status: status, data1: data1, data2: data2)
+            Task { @MainActor in
+                perfVM.handleIncomingMidi(status: status, data1: data1, data2: data2)
+            }
         }
     }
 
