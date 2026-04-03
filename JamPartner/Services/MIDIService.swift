@@ -30,8 +30,11 @@ final class MIDIService: MIDIServiceProtocol {
             return
         }
 
-        let sourceStatus = MIDISourceCreate(
-            client, "JamPartner Out" as CFString, &virtualSource
+        let sourceStatus = MIDISourceCreateWithProtocol(
+            client,
+            "JamPartner Out" as CFString,
+            ._1_0,
+            &virtualSource
         )
         guard sourceStatus == noErr else {
             MIDIClientDispose(client)
@@ -67,8 +70,9 @@ final class MIDIService: MIDIServiceProtocol {
 
         var eventList = MIDIEventList()
         var packet = MIDIEventListInit(&eventList, ._1_0)
+        // UMP MIDI 1.0 Channel Voice: message type 0x2, group 0
         let words: [UInt32] = [
-            UInt32(status) << 16 | UInt32(data1) << 8 | UInt32(data2)
+            0x2000_0000 | UInt32(status) << 16 | UInt32(data1) << 8 | UInt32(data2)
         ]
         packet = MIDIEventListAdd(&eventList,
                                   MemoryLayout<MIDIEventList>.size,
