@@ -10,72 +10,88 @@ import Foundation
 @MainActor
 @Observable
 final class PerformViewModel {
-    private(set) var log: [String] = []
-    var debounceMs: Double = 250
-
-    let modeManager: ModeManager
-    private let midiService: any MIDIServiceProtocol
-    private let mappingEngine: MappingEngine
-
-    init(midiService: any MIDIServiceProtocol,
-         mappingEngine: MappingEngine,
-         modeManager: ModeManager) {
-        self.midiService = midiService
-        self.mappingEngine = mappingEngine
-        self.modeManager = modeManager
-
-        midiService.onLog = { [weak self] msg in
-            Task { @MainActor in self?.appendLog(msg) }
+        private(set) var log: [String] = []
+        var debounceMs: Double = 250
+        
+        let modeManager: ModeManager
+        private let midiService: any MIDIServiceProtocol
+        private let mappingEngine: MappingEngine
+        private let bleService: any BLEServiceProtocol
+        
+        init(midiService: any MIDIServiceProtocol,
+             mappingEngine: MappingEngine,
+             modeManager: ModeManager,
+             bleService: any BLEServiceProtocol) {
+                self.midiService   = midiService
+                self.mappingEngine = mappingEngine
+                self.modeManager   = modeManager
+                self.bleService    = bleService
+                
+                midiService.onLog = { [weak self] msg in
+                        Task { @MainActor in self?.appendLog(msg) }
+                }
+                mappingEngine.onLog = { [weak self] msg in
+                        Task { @MainActor in self?.appendLog(msg) }
+                }
+                mappingEngine.onButtonTriggered = { [weak self] index in
+                        self?.triggerAction(for: index)
+                }
+                mappingEngine.onCycleModeRequested = { [weak self] in
+                        guard let self else { return }
+                        self.modeManager.cycleMode()
+                        self.appendLog("Mode → \(self.modeManager.currentMode.name)")
+                }
+                
+                mappingEngine.config = modeManager.mappingConfig
+                debounceMs = modeManager.mappingConfig.debounceMs
+                
+                midiService.start()
         }
-        mappingEngine.onLog = { [weak self] msg in
-            Task { @MainActor in self?.appendLog(msg) }
+        
+        func onButtonTap(_ index: Int) {
+                mappingEngine.handleButtonPress(button: index)
         }
-        mappingEngine.onButtonTriggered = { [weak self] index in
-            self?.triggerAction(for: index)
+        
+        func syncDebounce() {
+                mappingEngine.debounceMs = debounceMs
         }
-        mappingEngine.onCycleModeRequested = { [weak self] in
-            guard let self else { return }
-            self.modeManager.cycleMode()
-            self.appendLog("Mode → \(self.modeManager.currentMode.name)")
+        
+        func handleIncomingMidi(status: UInt8, data1: UInt8, data2: UInt8) {
+                mappingEngine.handleIncoming(status: status, data1: data1, data2: data2)
         }
-
-        // Applique la config persistée au démarrage
-        mappingEngine.config = modeManager.mappingConfig
-        debounceMs = modeManager.mappingConfig.debounceMs
-
-        midiService.start()
-    }
-
-    func onButtonTap(_ index: Int) {
-        mappingEngine.handleButtonPress(button: index)
-    }
-
-    func syncDebounce() {
-        mappingEngine.debounceMs = debounceMs
-    }
-
-    func handleIncomingMidi(status: UInt8, data1: UInt8, data2: UInt8) {
-        mappingEngine.handleIncoming(status: status, data1: data1, data2: data2)
-    }
-
-    func cycleMode() {
-        modeManager.cycleMode()
-    }
-
-    /// Appelé par MappingSettingsView quand la config change — propage
-    /// immédiatement au moteur sans recréer le ViewModel.
-    func applyMappingConfig(_ config: MappingConfig) {
-        mappingEngine.config = config
-        debounceMs = config.debounceMs
-    }
-
-    private func triggerAction(for index: Int) {
-        guard let action = modeManager.actionForButton(index) else { return }
-        mappingEngine.trigger(action: action)
-    }
-
-    private func appendLog(_ message: String) {
-        log.insert(message, at: 0)
-        if log.count > 30 { log.removeLast() }
-    }
+        
+        func cycleMode() {
+                modeManager.cycleMode()
+        }
+        
+        /// Propage une nouvelle config au moteur immédiatement, sans recréer le VM.
+        func applyMappingConfig(_ config: MappingConfig) {
+                mappingEngine.config = config
+                debounceMs = config.debounceMs
+        }
+        
+        /// Démarre le mode apprentissage de note pour un bouton.
+        /// Le coordinator intercepte BLEService.onMidiMessage le temps d'une
+        /// Note On, puis restaure le handler normal automatiquement.
+        func startNoteLearn(
+                buttonIndex: Int,
+                coordinator: LearnModeCoordinator,
+                onNoteAssigned: @escaping (UInt8, Int) -> Void
+        ) {
+                coordinator.startLearning(
+                        buttonIndex: buttonIndex,
+                        bleService: bleService,
+                        onNoteAssigned: onNoteAssigned
+                )
+        }
+        
+        private func triggerAction(for index: Int) {
+                guard let action = modeManager.actionForButton(index) else { return }
+                mappingEngine.trigger(action: action)
+        }
+        
+        private func appendLog(_ message: String) {
+                log.insert(message, at: 0)
+                if log.count > 30 { log.removeLast() }
+        }
 }

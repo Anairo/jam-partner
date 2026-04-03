@@ -26,6 +26,7 @@ class MIDIService: MIDIServiceProtocol {
 
     private var client = MIDIClientRef()
     private var virtualSource = MIDIEndpointRef()
+    private var outputPort = MIDIPortRef()
 
     // MARK: - Démarrage
 
@@ -39,19 +40,28 @@ class MIDIService: MIDIServiceProtocol {
             return
         }
 
+        let outputStatus = MIDIOutputPortCreate(
+            client,
+            "JamPartner Out Port" as CFString,
+            &outputPort
+        )
+        guard outputStatus == noErr else {
+            onLog?("Failed to create MIDI output port: \(outputStatus)")
+            return
+        }
+
         let sourceStatus = MIDISourceCreateWithProtocol(
             client,
             "JamPartner Out" as CFString,
             ._1_0,
             &virtualSource
         )
-
-        guard sourceStatus == noErr else {
-            onLog?("Failed to create virtual MIDI source: \(sourceStatus)")
-            return
+        if sourceStatus != noErr {
+            // Non-blocking: sending to external destinations still works via output port.
+            onLog?("Virtual source unavailable: \(sourceStatus)")
         }
 
-        onLog?("Virtual MIDI source created: JamPartner Out")
+        onLog?("MIDI ready: output port created")
     }
 
     // MARK: - API publique
@@ -74,8 +84,8 @@ class MIDIService: MIDIServiceProtocol {
     // MARK: - Envoi bas niveau
 
     private func send(status: UInt8, data1: UInt8, data2: UInt8) {
-        guard virtualSource != 0 else {
-            onLog?("No virtual source — call start() first")
+        guard outputPort != 0 else {
+            onLog?("No MIDI output port — call start() first")
             return
         }
             
@@ -98,9 +108,32 @@ class MIDIService: MIDIServiceProtocol {
             )
         }
 
-        let err = MIDIReceivedEventList(virtualSource, &eventList)
-        if err != noErr {
-            onLog?("MIDIReceivedEventList error: \(err)")
+        let destinations = currentDestinations()
+        guard !destinations.isEmpty else {
+            onLog?("No MIDI destination found on iOS")
+            return
         }
+
+        for destination in destinations {
+            let err = MIDISendEventList(outputPort, destination, &eventList)
+            if err != noErr {
+                onLog?("MIDISendEventList error: \(err)")
+            }
+        }
+    }
+
+    private func currentDestinations() -> [MIDIEndpointRef] {
+        let count = MIDIGetNumberOfDestinations()
+        guard count > 0 else { return [] }
+
+        var endpoints: [MIDIEndpointRef] = []
+        endpoints.reserveCapacity(Int(count))
+        for i in 0..<count {
+            let endpoint = MIDIGetDestination(i)
+            if endpoint != 0 {
+                endpoints.append(endpoint)
+            }
+        }
+        return endpoints
     }
 }
