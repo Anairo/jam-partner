@@ -59,24 +59,28 @@ final class MIDIService: MIDIServiceProtocol {
         onLog?("CC \(controller) value=\(value)")
     }
 
+    // MIDIPacketList + MIDIReceived — legacy API, most compatible with all DAWs
     private func send(status: UInt8, data1: UInt8, data2: UInt8) {
         guard virtualSource != 0 else {
-            onLog?("No virtual source")
+            onLog?("No virtual source — call start() first")
             return
         }
 
-        var eventList = MIDIEventList()
-        var packet = MIDIEventListInit(&eventList, ._1_0)
-        let words: [UInt32] = [
-            UInt32(status) << 16 | UInt32(data1) << 8 | UInt32(data2)
-        ]
-        packet = MIDIEventListAdd(&eventList,
-                                  MemoryLayout<MIDIEventList>.size,
-                                  packet, 0, words.count, words)
+        let bytes: [UInt8] = [status, data1, data2]
+        var packetList = MIDIPacketList()
+        var packet = MIDIPacketListInit(&packetList)
+        packet = MIDIPacketListAdd(
+            &packetList,
+            MemoryLayout<MIDIPacketList>.size,
+            packet,
+            0,
+            bytes.count,
+            bytes
+        )
 
-        let err = MIDIReceivedEventList(virtualSource, &eventList)
+        let err = MIDIReceived(virtualSource, &packetList)
         if err != noErr {
-            onLog?("MIDIReceivedEventList error: \(err)")
+            onLog?("MIDIReceived error: \(err)")
         }
     }
 

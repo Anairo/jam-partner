@@ -12,17 +12,9 @@ protocol MIDIServiceProtocol: AnyObject {
 
 // MARK: - Implementation
 
-/// Crée une source MIDI virtuelle et envoie des messages MIDI 1.0 via CoreMIDI.
-/// Les appels CoreMIDI sont thread-safe par conception
-/// Les rappels `onLog` doivent être dispatchés sur le main thread par l'appelant
-/// (ex: via `Task { @MainActor in ... }` dans PerformViewModel).
 class MIDIService: MIDIServiceProtocol {
 
-    // MARK: Callback de log  (nil par défaut)
-        
     var onLog: ((String) -> Void)?
-
-    // MARK: Propriétés CoreMIDI privées
 
     private var client = MIDIClientRef()
     private var virtualSource = MIDIEndpointRef()
@@ -45,23 +37,20 @@ class MIDIService: MIDIServiceProtocol {
             "JamPartner Out Port" as CFString,
             &outputPort
         )
-        guard outputStatus == noErr else {
-            onLog?("Failed to create MIDI output port: \(outputStatus)")
-            return
+        if outputStatus != noErr {
+            onLog?("Output port unavailable: \(outputStatus)")
         }
 
-        let sourceStatus = MIDISourceCreateWithProtocol(
+        let sourceStatus = MIDISourceCreate(
             client,
             "JamPartner Out" as CFString,
-            ._1_0,
             &virtualSource
         )
         if sourceStatus != noErr {
-            // Non-blocking: sending to external destinations still works via output port.
             onLog?("Virtual source unavailable: \(sourceStatus)")
         }
 
-        onLog?("MIDI ready: output port created")
+        onLog?("MIDI ready (source=\(virtualSource != 0), port=\(outputPort != 0))")
     }
 
     // MARK: - API publique
@@ -81,43 +70,37 @@ class MIDIService: MIDIServiceProtocol {
         onLog?("CC \(controller) value=\(value)")
     }
 
-    // MARK: - Envoi bas niveau
+    // MARK: - Envoi bas niveau (MIDIPacketList — compatible tous DAW)
 
     private func send(status: UInt8, data1: UInt8, data2: UInt8) {
-        guard outputPort != 0 else {
-            onLog?("No MIDI output port — call start() first")
-            return
-        }
-            
-        let word: UInt32 = 0x2000_0000
-            | UInt32(status) << 16
-            | UInt32(data1)  << 8
-            | UInt32(data2)
+        let bytes: [UInt8] = [status, data1, data2]
 
-        var eventList = MIDIEventList()
-        var packet = MIDIEventListInit(&eventList, ._1_0)
+        var packetList = MIDIPacketList()
+        var packet = MIDIPacketListInit(&packetList)
+        packet = MIDIPacketListAdd(
+            &packetList,
+            MemoryLayout<MIDIPacketList>.size,
+            packet,
+            0,
+            bytes.count,
+            bytes
+        )
 
-        withUnsafePointer(to: word) { ptr in
-            packet = MIDIEventListAdd(
-                &eventList,
-                MemoryLayout<MIDIEventList>.size,
-                packet,
-                0,   // timestamp : 0 = envoi immédiat
-                1,   // 1 mot UMP
-                ptr
-            )
-        }
-
-        let destinations = currentDestinations()
-        guard !destinations.isEmpty else {
-            onLog?("No MIDI destination found on iOS")
-            return
-        }
-
-        for destination in destinations {
-            let err = MIDISendEventList(outputPort, destination, &eventList)
+        // Virtual source — Ableton (same machine) reads "JamPartner Out"
+        if virtualSource != 0 {
+            let err = MIDIReceived(virtualSource, &packetList)
             if err != noErr {
-                onLog?("MIDISendEventList error: \(err)")
+                onLog?("MIDIReceived error: \(err)")
+            }
+        }
+
+        // Output port → external destinations (USB Mac, Network MIDI…)
+        if outputPort != 0 {
+            for dest in currentDestinations() {
+                let err = MIDISend(outputPort, dest, &packetList)
+                if err != noErr {
+                    onLog?("MIDISend error: \(err)")
+                }
             }
         }
     }
