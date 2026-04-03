@@ -9,11 +9,16 @@ final class PerformViewModel {
     let modeManager: ModeManager
     private let midiService: any MIDIServiceProtocol
     private let mappingEngine: MappingEngine
+    private let bleService: any BLEServiceProtocol
 
-    init(midiService: any MIDIServiceProtocol, mappingEngine: MappingEngine, modeManager: ModeManager) {
+    init(midiService: any MIDIServiceProtocol,
+         mappingEngine: MappingEngine,
+         modeManager: ModeManager,
+         bleService: any BLEServiceProtocol) {
         self.midiService = midiService
         self.mappingEngine = mappingEngine
         self.modeManager = modeManager
+        self.bleService = bleService
 
         midiService.onLog = { [weak self] msg in
             Task { @MainActor in
@@ -59,6 +64,21 @@ final class PerformViewModel {
     func applyMappingConfig(_ config: MappingConfig) {
         mappingEngine.config = config
         debounceMs = config.debounceMs
+    }
+
+    /// Démarre le mode apprentissage de note pour un bouton.
+    /// Le coordinator intercepte BLEService.onMidiMessage le temps d'une
+    /// Note On, puis restaure le handler normal automatiquement.
+    func startNoteLearn(
+        buttonIndex: Int,
+        coordinator: LearnModeCoordinator,
+        onNoteAssigned: @escaping (UInt8, Int) -> Void
+    ) {
+        coordinator.startLearning(
+            buttonIndex: buttonIndex,
+            bleService: bleService,
+            onNoteAssigned: onNoteAssigned
+        )
     }
 
     private func triggerAction(for index: Int) {

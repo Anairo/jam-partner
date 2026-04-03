@@ -17,16 +17,17 @@ struct JamPartnerApp: App {
         let perfVM = PerformViewModel(
             midiService: midiService,
             mappingEngine: mappingEngine,
-            modeManager: modeManager
+            modeManager: modeManager,
+            bleService: bleService
         )
 
         _connectionVM = State(initialValue: connVM)
-        _performVM = State(initialValue: perfVM)
-        _modeManager = State(initialValue: modeManager)
+        _performVM    = State(initialValue: perfVM)
+        _modeManager  = State(initialValue: modeManager)
 
-        bleService.onMidiMessage = { status, data1, data2 in
+        bleService.onMidiMessage = { [weak perfVM] status, data1, data2 in
             Task { @MainActor in
-                perfVM.handleIncomingMidi(status: status, data1: data1, data2: data2)
+                perfVM?.handleIncomingMidi(status: status, data1: data1, data2: data2)
             }
         }
     }
